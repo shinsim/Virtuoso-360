@@ -9,10 +9,15 @@ const KEYS = {
 };
 
 // --- SECURITY HELPERS ---
+// The salt value used for password hashing.
+// In a real production app, this should be a random value per user stored in the database,
+// or a secure environment variable.
+const SALT = 'virtuoso_secure_salt_';
+
 // Simple mock hash (Base64 + Salt) to avoid plain text storage.
 // In a real application, use bcrypt or Argon2 on the server side.
 const hashPassword = (password: string): string => {
-  return btoa(`virtuoso_secure_salt_${password}`);
+  return btoa(`${SALT}${password}`);
 };
 
 // Helper to generate ID
