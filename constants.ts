@@ -3,7 +3,7 @@ import { AppConfig, User, UserRole, AnalyticsRecord } from './types';
 export const MOCK_ADMIN: User = {
   id: 'admin-001',
   username: 'admin',
-  password: 'password',
+  password: 'dmlydHVvc29fc2VjdXJlX3NhbHRfcGFzc3dvcmQ=', // Hashed 'password'
   role: UserRole.ADMIN,
   isVerified: true,
   isSetupComplete: true,

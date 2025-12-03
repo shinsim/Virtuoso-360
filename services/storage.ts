@@ -8,6 +8,13 @@ const KEYS = {
   CURRENT_USER_ID: 'virtuoso_session'
 };
 
+// --- SECURITY HELPERS ---
+// Simple mock hash (Base64 + Salt) to avoid plain text storage.
+// In a real application, use bcrypt or Argon2 on the server side.
+const hashPassword = (password: string): string => {
+  return btoa(`virtuoso_secure_salt_${password}`);
+};
+
 // Helper to generate ID
 export const generateUniqueId = (): string => {
   return Math.random().toString(36).substring(2, 9).toUpperCase();
@@ -41,11 +48,6 @@ export const saveUser = (user: User) => {
     users.push(user);
   }
   localStorage.setItem(KEYS.USERS, JSON.stringify(users));
-  // Update session if it's the current user
-  const currentId = localStorage.getItem(KEYS.CURRENT_USER_ID);
-  if (currentId === user.id) {
-    // Force re-render event or handled by App state
-  }
 };
 
 export const updateUser = (user: User) => {
@@ -55,6 +57,18 @@ export const updateUser = (user: User) => {
     users[index] = user;
     localStorage.setItem(KEYS.USERS, JSON.stringify(users));
   }
+};
+
+export const changeUserPassword = (userId: string, newPassword: string): User | null => {
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === userId);
+  if (index >= 0) {
+    // Hash the new password before saving
+    users[index].password = hashPassword(newPassword);
+    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    return users[index];
+  }
+  return null;
 };
 
 export const deleteUser = (userId: string) => {
@@ -67,9 +81,9 @@ export const registerUser = (username: string, password: string): User => {
   const newUser: User = {
     id: `user-${Date.now()}`,
     username,
-    password,
+    password: hashPassword(password), // Store hashed
     role: UserRole.USER,
-    isVerified: false, // Requires verification
+    isVerified: false, 
     isSetupComplete: false
   };
   saveUser(newUser);
@@ -104,11 +118,9 @@ export const getConfig = (): AppConfig => {
     });
     config.contactGroups = Object.values(groups);
     delete config.contacts;
-    // Save migrated config immediately
     saveConfig(config);
   }
   
-  // Safety check for empty contactGroups if migration wasn't needed but key is missing
   if (!config.contactGroups) {
       config.contactGroups = INITIAL_CONFIG.contactGroups;
   }
@@ -129,11 +141,30 @@ export const getAnalytics = (): AnalyticsRecord[] => {
 // Session
 export const login = (username: string, password: string): User | null => {
   const users = getUsers();
-  const user = users.find(u => u.username === username && u.password === password);
-  if (user) {
+  const hashed = hashPassword(password);
+  
+  const userIndex = users.findIndex(u => u.username === username);
+  if (userIndex === -1) return null;
+  
+  const user = users[userIndex];
+  
+  // 1. Check secure hash
+  if (user.password === hashed) {
     localStorage.setItem(KEYS.CURRENT_USER_ID, user.id);
     return user;
   }
+  
+  // 2. Fallback: Check plain text (for migration of old data)
+  if (user.password === password) {
+    // Migrate to hash immediately
+    user.password = hashed;
+    users[userIndex] = user;
+    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    
+    localStorage.setItem(KEYS.CURRENT_USER_ID, user.id);
+    return user;
+  }
+  
   return null;
 };
 
@@ -162,12 +193,11 @@ export const backupSystem = (): string => {
 export const restoreSystem = (jsonContent: string): boolean => {
   try {
     const backup = JSON.parse(jsonContent);
-    // Basic validation to ensure it's a valid backup object
+    // Basic validation
     if (!backup || typeof backup !== 'object') {
         return false;
     }
     
-    // Check if at least one expected key exists to confirm it is likely a valid backup file
     if (!backup.users && !backup.config && !backup.analytics) {
         return false;
     }

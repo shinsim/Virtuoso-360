@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, AppConfig } from './types';
-import { initStorage, getCurrentUser, login, logout, getConfig, saveUser, generateUniqueId, registerUser } from './services/storage';
+import { initStorage, getCurrentUser, login, logout, getConfig, saveUser, generateUniqueId, registerUser, changeUserPassword } from './services/storage';
 import PanoramaViewer from './components/PanoramaViewer';
 import Dashboard from './components/Dashboard';
 
@@ -13,6 +13,8 @@ const IconDashboard = () => <svg className="w-5 h-5" fill="none" stroke="current
 const IconMenu = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>;
 const IconLogin = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>;
 const IconAlert = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const IconEye = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
+const IconEyeOff = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>;
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -27,6 +29,8 @@ function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState(''); // Re-type password
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [shake, setShake] = useState(false);
 
@@ -139,12 +143,16 @@ function App() {
 
   const handleChangePassword = () => {
     if(currentUser && newPassword) {
-      const updated = { ...currentUser, password: newPassword };
-      saveUser(updated);
-      setCurrentUser(updated);
-      setPasswordMsg('Password updated!');
-      setTimeout(() => setPasswordMsg(''), 3000);
-      setNewPassword('');
+      // Use secure change password function which hashes the input
+      const updatedUser = changeUserPassword(currentUser.id, newPassword);
+      if (updatedUser) {
+          setCurrentUser(updatedUser);
+          setPasswordMsg('Password updated successfully!');
+          setTimeout(() => setPasswordMsg(''), 3000);
+          setNewPassword('');
+      } else {
+          setPasswordMsg('Failed to update password.');
+      }
     }
   };
 
@@ -400,7 +408,7 @@ function App() {
                </div> 
             ) : (
                 <button 
-                    onClick={() => { setIsAuthOpen(true); setAuthMode('LOGIN'); setErrorMessage(''); }}
+                    onClick={() => { setIsAuthOpen(true); setAuthMode('LOGIN'); setErrorMessage(''); setShowPassword(false); setShowConfirmPassword(false); }}
                     className="bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 p-3 rounded-full shadow-lg transition-all transform hover:scale-105 backdrop-blur-md"
                     title="Login / Signup"
                 >
@@ -491,24 +499,42 @@ function App() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                                    <input 
-                                        required 
-                                        type="password" 
-                                        className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" 
-                                        value={password} 
-                                        onChange={e => setPassword(e.target.value)} 
-                                    />
+                                    <div className="relative">
+                                        <input 
+                                            required 
+                                            type={showPassword ? "text" : "password"}
+                                            className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none pr-10" 
+                                            value={password} 
+                                            onChange={e => setPassword(e.target.value)} 
+                                        />
+                                        <button
+                                            type="button"
+                                            className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 cursor-pointer"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            {showPassword ? <IconEyeOff /> : <IconEye />}
+                                        </button>
+                                    </div>
                                 </div>
                                 {authMode === 'SIGNUP' && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                                        <input 
-                                            required 
-                                            type="password" 
-                                            className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" 
-                                            value={confirmPassword} 
-                                            onChange={e => setConfirmPassword(e.target.value)} 
-                                        />
+                                        <div className="relative">
+                                            <input 
+                                                required 
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none pr-10" 
+                                                value={confirmPassword} 
+                                                onChange={e => setConfirmPassword(e.target.value)} 
+                                            />
+                                            <button
+                                                type="button"
+                                                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 cursor-pointer"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            >
+                                                {showConfirmPassword ? <IconEyeOff /> : <IconEye />}
+                                            </button>
+                                        </div>
                                         <p className="text-xs text-gray-400 mt-1">Min 8 chars, 1 upper, 1 number, 1 symbol</p>
                                     </div>
                                 )}
@@ -521,9 +547,9 @@ function App() {
                         {authMode !== 'SETUP' && (
                             <div className="mt-6 text-center text-sm">
                                 {authMode === 'LOGIN' ? (
-                                    <p>Don't have an account? <button onClick={() => { setAuthMode('SIGNUP'); setErrorMessage(''); }} className="text-blue-600 font-bold hover:underline">Sign up</button></p>
+                                    <p>Don't have an account? <button onClick={() => { setAuthMode('SIGNUP'); setErrorMessage(''); setShowPassword(false); setShowConfirmPassword(false); }} className="text-blue-600 font-bold hover:underline">Sign up</button></p>
                                 ) : (
-                                    <p>Already registered? <button onClick={() => { setAuthMode('LOGIN'); setErrorMessage(''); }} className="text-blue-600 font-bold hover:underline">Login</button></p>
+                                    <p>Already registered? <button onClick={() => { setAuthMode('LOGIN'); setErrorMessage(''); setShowPassword(false); }} className="text-blue-600 font-bold hover:underline">Login</button></p>
                                 )}
                             </div>
                         )}
