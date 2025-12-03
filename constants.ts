@@ -13,10 +13,28 @@ export const MOCK_ADMIN: User = {
 
 export const INITIAL_CONFIG: AppConfig = {
   panoramaUrl: "https://tuju.pages.dev/showunit_only/index.htm",
-  contacts: [
-    { id: 'c1', category: 'Lawyer', name: 'Legal Eagles LLP', details: '555-0123' },
-    { id: 'c2', category: 'Banker', name: 'Global Trust Bank', details: '555-0987' },
-    { id: 'c3', category: 'City Council', name: 'Metro City Council', details: 'Helpdesk: 555-1111' },
+  contactGroups: [
+    {
+      id: 'g1',
+      title: 'Lawyer',
+      items: [
+        { id: 'c1', name: 'Legal Eagles LLP', details: '555-0123' }
+      ]
+    },
+    {
+      id: 'g2',
+      title: 'Banker',
+      items: [
+        { id: 'c2', name: 'Global Trust Bank', details: '555-0987' }
+      ]
+    },
+    {
+      id: 'g3',
+      title: 'City Council',
+      items: [
+        { id: 'c3', name: 'Metro City Council', details: 'https://metro.city.gov' }
+      ]
+    }
   ],
   developers: [
     { id: 'd1', name: 'WCT', description: 'Engineering and Construction', url: 'https://www.wct.com.my' },

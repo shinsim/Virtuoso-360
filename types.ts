@@ -23,11 +23,16 @@ export interface AnalyticsRecord {
   panoramaViews: Record<string, number>; // panoId -> count
 }
 
-export interface ContactEntry {
+export interface ContactItem {
   id: string;
-  category: 'Lawyer' | 'Banker' | 'City Council';
   name: string;
-  details: string;
+  details: string; // Phone or URL
+}
+
+export interface ContactGroup {
+  id: string;
+  title: string;
+  items: ContactItem[];
 }
 
 export interface DeveloperEntry {
@@ -45,7 +50,7 @@ export interface BookingEntry {
 
 export interface AppConfig {
   panoramaUrl: string;
-  contacts: ContactEntry[];
+  contactGroups: ContactGroup[];
   developers: DeveloperEntry[];
   bookings: BookingEntry[];
 }

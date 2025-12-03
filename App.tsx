@@ -26,7 +26,8 @@ function App() {
   // Auth Form State
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState(''); // Re-type password
+  const [errorMessage, setErrorMessage] = useState('');
   const [shake, setShake] = useState(false);
 
   const [setupData, setSetupData] = useState({ name: '', phone: '', company: '' });
@@ -46,6 +47,11 @@ function App() {
     setConfig(getConfig());
   };
 
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 300);
+  };
+
   // Handle Login Flow
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,20 +68,43 @@ function App() {
         setUsername('');
         setPassword('');
       }
-      setLoginError(false);
+      setErrorMessage('');
     } else {
-      // Show error with animation
-      setLoginError(true);
-      setShake(true);
-      setTimeout(() => setShake(false), 300);
+      setErrorMessage('Invalid email or password');
+      triggerShake();
     }
   };
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+
+    // 1. Validate Email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(username)) {
+      setErrorMessage('Please enter a valid email address.');
+      triggerShake();
+      return;
+    }
+
+    // 2. Validate Password Complexity
+    // NIST recommended: Min 8, Max 15, Uppercase, Numbers, Symbols
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,15}$/;
+    if (!passwordRegex.test(password)) {
+      setErrorMessage('Password must be 8-15 chars, contain 1 uppercase, 1 number, and 1 symbol.');
+      triggerShake();
+      return;
+    }
+
+    // 3. Validate Password Match
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      triggerShake();
+      return;
+    }
+
     registerUser(username, password);
     setVerificationSent(true);
-    setLoginError(false);
   };
 
   const handleVerify = () => {
@@ -85,6 +114,8 @@ function App() {
     setAuthMode('LOGIN');
     setUsername('');
     setPassword('');
+    setConfirmPassword('');
+    setErrorMessage('');
   };
 
   const handleSetup = (e: React.FormEvent) => {
@@ -129,6 +160,16 @@ function App() {
     }
   };
 
+  // Helper to determine link type
+  const getContactLink = (details: string) => {
+      if (details.match(/^https?:\/\//i)) {
+          return { href: details, target: '_blank', rel: 'noopener noreferrer' };
+      }
+      // Clean phone number
+      const phone = details.replace(/[^0-9+]/g, '');
+      return { href: `tel:${phone}`, target: undefined, rel: undefined };
+  };
+
   // Render Overlay Content
   const renderOverlayContent = () => {
     if (!activeOverlay || !config) return null;
@@ -140,17 +181,28 @@ function App() {
         case 'CONTACT':
             title = "Useful Contacts";
             content = (
-                <div className="space-y-4">
-                    {config.contacts.map(c => (
-                        <a 
-                            key={c.id} 
-                            href={`tel:${c.details.replace(/[^0-9+]/g, '')}`}
-                            className="block bg-gray-50 p-3 rounded border hover:bg-blue-50 hover:border-blue-200 transition-colors cursor-pointer group"
-                        >
-                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wide group-hover:text-blue-700">{c.category}</span>
-                            <div className="font-semibold text-gray-800 group-hover:text-blue-900">{c.name}</div>
-                            <div className="text-gray-600 text-sm">{c.details}</div>
-                        </a>
+                <div className="space-y-6">
+                    {config.contactGroups?.map(group => (
+                        <div key={group.id} className="space-y-2">
+                             <h4 className="text-sm font-bold text-blue-800 uppercase tracking-wide border-b border-blue-100 pb-1 mb-2">
+                                {group.title}
+                             </h4>
+                             <div className="grid gap-2">
+                                {group.items.map(item => {
+                                    const linkProps = getContactLink(item.details);
+                                    return (
+                                        <a 
+                                            key={item.id}
+                                            {...linkProps}
+                                            className="block bg-gray-50 p-3 rounded border hover:bg-blue-50 hover:border-blue-200 transition-colors cursor-pointer group"
+                                        >
+                                            <div className="font-semibold text-gray-800 group-hover:text-blue-900">{item.name}</div>
+                                            <div className="text-gray-600 text-sm truncate">{item.details}</div>
+                                        </a>
+                                    );
+                                })}
+                             </div>
+                        </div>
                     ))}
                 </div>
             );
@@ -237,7 +289,7 @@ function App() {
 
     return (
         <div 
-            className="absolute top-28 right-60 w-72 bg-white/95 backdrop-blur shadow-2xl rounded-xl overflow-hidden animate-fade-in z-20 border border-white/50"
+            className="absolute top-28 right-60 w-80 bg-white/95 backdrop-blur shadow-2xl rounded-xl overflow-hidden animate-fade-in z-20 border border-white/50"
             style={{
                 maxHeight: 'calc(100vh - 120px)'
             }}
@@ -274,7 +326,7 @@ function App() {
                <div className="flex flex-col items-end gap-1">
                    {/* Greeting */}
                    <div className="bg-white/90 backdrop-blur px-4 py-1 rounded-lg shadow-lg">
-                       <span className="text-sm font-semibold">Hi, {currentUser.fullName || currentUser.username}</span>
+                       <span className="text-sm font-semibold">{currentUser.fullName || currentUser.username}</span>
                    </div>
                    
                    {/* Hamburger Menu & Dropdown */}
@@ -348,7 +400,7 @@ function App() {
                </div> 
             ) : (
                 <button 
-                    onClick={() => { setIsAuthOpen(true); setAuthMode('LOGIN'); setLoginError(false); }}
+                    onClick={() => { setIsAuthOpen(true); setAuthMode('LOGIN'); setErrorMessage(''); }}
                     className="bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 p-3 rounded-full shadow-lg transition-all transform hover:scale-105 backdrop-blur-md"
                     title="Login / Signup"
                 >
@@ -419,20 +471,47 @@ function App() {
                             </form>
                         ) : (
                             <form onSubmit={authMode === 'LOGIN' ? handleLogin : handleSignup} className="space-y-4">
-                                {loginError && authMode === 'LOGIN' && (
-                                    <div className="bg-red-50 text-red-600 text-sm px-4 py-2 rounded-lg border border-red-200 flex items-center gap-2 animate-fade-in">
-                                        <IconAlert />
-                                        <span>Invalid email or password</span>
+                                {errorMessage && (
+                                    <div className="bg-red-50 text-red-600 text-xs px-4 py-2 rounded-lg border border-red-200 flex items-start gap-2 animate-fade-in break-words">
+                                        <div className="mt-0.5"><IconAlert /></div>
+                                        <span>{errorMessage}</span>
                                     </div>
                                 )}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Username / Email</label>
-                                    <input required type="text" className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={username} onChange={e => setUsername(e.target.value)} />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        {authMode === 'SIGNUP' ? 'Email Address' : 'Username / Email'}
+                                    </label>
+                                    <input 
+                                        required 
+                                        type={authMode === 'SIGNUP' ? 'email' : 'text'}
+                                        className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                                        value={username} 
+                                        onChange={e => setUsername(e.target.value)} 
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                                    <input required type="password" className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={password} onChange={e => setPassword(e.target.value)} />
+                                    <input 
+                                        required 
+                                        type="password" 
+                                        className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                                        value={password} 
+                                        onChange={e => setPassword(e.target.value)} 
+                                    />
                                 </div>
+                                {authMode === 'SIGNUP' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                        <input 
+                                            required 
+                                            type="password" 
+                                            className="w-full bg-gray-100 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                                            value={confirmPassword} 
+                                            onChange={e => setConfirmPassword(e.target.value)} 
+                                        />
+                                        <p className="text-xs text-gray-400 mt-1">Min 8 chars, 1 upper, 1 number, 1 symbol</p>
+                                    </div>
+                                )}
                                 <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition mt-2">
                                     {authMode === 'LOGIN' ? 'Sign In' : 'Sign Up'}
                                 </button>
@@ -442,9 +521,9 @@ function App() {
                         {authMode !== 'SETUP' && (
                             <div className="mt-6 text-center text-sm">
                                 {authMode === 'LOGIN' ? (
-                                    <p>Don't have an account? <button onClick={() => { setAuthMode('SIGNUP'); setLoginError(false); }} className="text-blue-600 font-bold hover:underline">Sign up</button></p>
+                                    <p>Don't have an account? <button onClick={() => { setAuthMode('SIGNUP'); setErrorMessage(''); }} className="text-blue-600 font-bold hover:underline">Sign up</button></p>
                                 ) : (
-                                    <p>Already registered? <button onClick={() => { setAuthMode('LOGIN'); setLoginError(false); }} className="text-blue-600 font-bold hover:underline">Login</button></p>
+                                    <p>Already registered? <button onClick={() => { setAuthMode('LOGIN'); setErrorMessage(''); }} className="text-blue-600 font-bold hover:underline">Login</button></p>
                                 )}
                             </div>
                         )}
@@ -453,7 +532,7 @@ function App() {
                 
                 {/* Close Button if not forced setup */}
                 {authMode !== 'SETUP' && (
-                     <button onClick={() => { setIsAuthOpen(false); setLoginError(false); }} className="absolute top-4 right-4 text-white/80 hover:text-white">✕</button>
+                     <button onClick={() => { setIsAuthOpen(false); setErrorMessage(''); }} className="absolute top-4 right-4 text-white/80 hover:text-white">✕</button>
                 )}
             </div>
         </div>
