@@ -1,0 +1,5 @@
+{
+  "name": "Virtuoso 360",
+  "description": "A premium 360 virtual tour viewer with role-based access control, admin dashboard, and analytics.",
+  "requestFramePermissions": []
+}
